@@ -1,16 +1,48 @@
-# React + Vite
+# e-PC (Digital Panchayat System) - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React / Vite frontend for the **e-PC** (Digital Panchayat System), a cutting-edge web application designed to empower rural areas by digitizing village administration, complaints, polling, and schemes.
 
-Currently, two official plugins are available:
+## ✨ Features
+- **Responsive & Cinematic UI:** High-end motion design and glassmorphism elements targeting modern visual standards.
+- **Citizen Dashboard:** Centralized panel for submitting geo-tagged complaints with images, voting on live community polls, and browsing AI-explained local schemes.
+- **Analytics Tab:** In-depth interactive visual charts (using Recharts) mapping complaint resolutions and system usage.
+- **Admin Dashboard:** Specific panel for Panchayat officers to manage polling, resolve complaints, notify residents, and add government schemes.
+- **Multilingual AI Chatbot:** An intelligent interactive assistant helping citizens find forms, answers, and solutions.
+- **GIS Integration:** Real-time leaflet map integration showing precisely where community issues are located.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Tech Stack
+- **Framework:** React.js powered by Vite
+- **Styling:** CSS / Tailwind CSS
+- **Animations:** Framer Motion, GSAP, Lenis (Smooth Scrolling)
+- **Map System:** React Leaflet (`react-leaflet`)
+- **Data Visualization:** Recharts
+- **State Management:** Zustand (`useAuthStore`)
+- **Icons:** Lucide React
 
-## React Compiler
+## 📦 Setup & Installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Expanding the ESLint configuration
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Build for production:
+   ```bash
+   npm run build
+   ```
+
+*Ensure that the `backend` server is running concurrently at `http://localhost:5000` for API requests to resolve correctly.*
+
+## 📂 Project Structure Highlights
+- `/src/pages`: Main view routes (`Home.jsx`, `Dashboard.jsx`, `Login.jsx`, `Admin.jsx`).
+- `/src/components`: Reusable elements (`Navbar.jsx`, `PageTransition.jsx`, `Preloader.jsx`, `Chatbot.jsx`).
+- `/src/store`: Application state files (`useAuthStore.js` for JWT authentication).
+- `/index.css`: Global styles, cursor overrides, and scrollbar modifications.
+
+## 🔗 Connected Backend
+The frontend heavily relies on the backend AI models (Gemini 2.5 Flash Lite). When data is fetched or posted (like submitting a new complaint or opening the chatbot), axial logic automatically attaches a `Bearer token` from local storage to authenticate the transaction securely.
