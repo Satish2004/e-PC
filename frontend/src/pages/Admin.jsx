@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useAuthStore from '../store/useAuthStore';
 import api from '../api/api';
 import { toast } from 'react-toastify';
-import { Settings, Plus, BarChart2, Activity, Zap, Info, MapPin } from 'lucide-react';
+import { Settings, Plus, BarChart2, Activity, Zap, Info, MapPin, Trash2, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -25,6 +25,8 @@ const Admin = () => {
 
     const [schemeForm, setSchemeForm] = useState({ title: '', description: '', eligibility: '', link: '' });
     const [pollForm, setPollForm] = useState({ question: '', option1: '', option2: '' });
+    const [editingSchemeId, setEditingSchemeId] = useState(null);
+    const [editingPollId, setEditingPollId] = useState(null);
 
     // const headers is now handled by api interceptor
 
@@ -53,27 +55,81 @@ const Admin = () => {
         } catch (error) { toast.error("Failed to update status"); }
     };
 
-    const createScheme = async (e) => {
-        e.preventDefault();
+    const deleteComplaint = async (id) => {
+        if (!window.confirm("Delete this complaint?")) return;
         try {
-            await api.post('/schemes', schemeForm);
-            toast.success("Scheme published!");
-            setSchemeForm({ title: '', description: '', eligibility: '', link: '' });
+            await api.delete(`/complaints/${id}`);
+            toast.success("Complaint deleted!");
             fetchData();
-        } catch (error) { toast.error("Failed to create scheme"); }
+        } catch (error) { toast.error("Failed to delete complaint"); }
     };
 
-    const createPoll = async (e) => {
+    const deleteScheme = async (id) => {
+        if (!window.confirm("Delete this scheme?")) return;
+        try {
+            await api.delete(`/schemes/${id}`);
+            toast.success("Scheme deleted!");
+            fetchData();
+        } catch (error) { toast.error("Failed to delete scheme"); }
+    };
+
+    const deletePoll = async (id) => {
+        if (!window.confirm("Delete this poll?")) return;
+        try {
+            await api.delete(`/polls/${id}`);
+            toast.success("Poll deleted!");
+            fetchData();
+        } catch (error) { toast.error("Failed to delete poll"); }
+    };
+
+    const handleEditScheme = (s) => {
+        setSchemeForm({ title: s.title, description: s.description, eligibility: s.eligibility || '', link: s.link || '' });
+        setEditingSchemeId(s._id);
+        window.scrollTo(0,0);
+    };
+
+    const handleEditPoll = (p) => {
+        setPollForm({ question: p.question, option1: p.options[0]?.text || '', option2: p.options[1]?.text || '' });
+        setEditingPollId(p._id);
+        window.scrollTo(0,0);
+    };
+
+    const saveScheme = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/polls', {
-                question: pollForm.question,
-                options: [pollForm.option1, pollForm.option2]
-            });
-            toast.success("Poll published!");
+            if (editingSchemeId) {
+                await api.put(`/schemes/${editingSchemeId}`, schemeForm);
+                toast.success("Scheme updated!");
+                setEditingSchemeId(null);
+            } else {
+                await api.post('/schemes', schemeForm);
+                toast.success("Scheme published!");
+            }
+            setSchemeForm({ title: '', description: '', eligibility: '', link: '' });
+            fetchData();
+        } catch (error) { toast.error("Failed to save scheme"); }
+    };
+
+    const savePoll = async (e) => {
+        e.preventDefault();
+        try {
+            if (editingPollId) {
+                await api.put(`/polls/${editingPollId}`, {
+                    question: pollForm.question,
+                    options: [pollForm.option1, pollForm.option2]
+                });
+                toast.success("Poll updated!");
+                setEditingPollId(null);
+            } else {
+                await api.post('/polls', {
+                    question: pollForm.question,
+                    options: [pollForm.option1, pollForm.option2]
+                });
+                toast.success("Poll published!");
+            }
             setPollForm({ question: '', option1: '', option2: '' });
             fetchData();
-        } catch (error) { toast.error("Failed to create poll"); }
+        } catch (error) { toast.error("Failed to save poll"); }
     };
 
     if (user?.role !== 'Admin') return <div className="text-center mt-20 text-red-500 font-bold">Unauthorized Access</div>;
@@ -193,19 +249,22 @@ const Admin = () => {
                                                 <div className="text-[10px] sm:text-xs text-slate-500 font-medium truncate max-w-[120px] sm:max-w-[150px]">
                                                     By: <span className="text-slate-300">{c.user?.name}</span>
                                                 </div>
-                                                <select 
-                                                    value={c.status} 
-                                                    onChange={(e) => updateStatus(c._id, e.target.value)}
-                                                    className={`text-[10px] sm:text-xs px-2 py-1 sm:py-1.5 rounded-lg font-bold border outline-none appearance-none cursor-pointer text-center min-w-[90px] sm:min-w-[100px] shadow-lg ${
-                                                        c.status === 'Resolved' ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' :
-                                                        c.status === 'In Progress' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20' :
-                                                        'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20'
-                                                    }`}
-                                                >
-                                                    <option className="bg-slate-900 text-white" value="Pending">Pending</option>
-                                                    <option className="bg-slate-900 text-white" value="In Progress">In Progress</option>
-                                                    <option className="bg-slate-900 text-white" value="Resolved">Resolved</option>
-                                                </select>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => deleteComplaint(c._id)} className="p-1.5 bg-red-500/10 text-red-500 rounded hover:bg-red-500/20 transition-colors" title="Delete Complaint"><Trash2 className="w-4 h-4"/></button>
+                                                    <select 
+                                                        value={c.status} 
+                                                        onChange={(e) => updateStatus(c._id, e.target.value)}
+                                                        className={`text-[10px] sm:text-xs px-2 py-1 sm:py-1.5 rounded-lg font-bold border outline-none appearance-none cursor-pointer text-center min-w-[90px] sm:min-w-[100px] shadow-lg ${
+                                                            c.status === 'Resolved' ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' :
+                                                            c.status === 'In Progress' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20' :
+                                                            'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20'
+                                                        }`}
+                                                    >
+                                                        <option className="bg-slate-900 text-white" value="Pending">Pending</option>
+                                                        <option className="bg-slate-900 text-white" value="In Progress">In Progress</option>
+                                                        <option className="bg-slate-900 text-white" value="Resolved">Resolved</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     );
@@ -221,8 +280,11 @@ const Admin = () => {
                         {activeTab === 'schemes' && (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
                                 <div className="lg:col-span-5 bg-white/5 p-6 sm:p-8 rounded-3xl border border-white/10 backdrop-blur-sm h-fit">
-                                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Plus className="p-1 rounded bg-indigo-500/20 text-indigo-400"/> Deploy Scheme</h2>
-                                    <form onSubmit={createScheme} className="space-y-4">
+                                    <h2 className="text-2xl font-bold mb-6 flex items-center justify-between gap-2">
+                                        <span className="flex items-center gap-2"><Plus className="p-1 rounded bg-indigo-500/20 text-indigo-400"/> {editingSchemeId ? "Edit" : "Deploy"} Scheme</span>
+                                        {editingSchemeId && <button onClick={() => {setEditingSchemeId(null); setSchemeForm({title:'', description:'', eligibility:'', link:''})}} className="text-sm bg-white/10 px-3 py-1 rounded text-red-400">Cancel</button>}
+                                    </h2>
+                                    <form onSubmit={saveScheme} className="space-y-4">
                                         <input 
                                             placeholder="Scheme Title" required 
                                             className="w-full px-4 py-3 sm:py-4 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition text-sm sm:text-base" 
@@ -245,8 +307,8 @@ const Admin = () => {
                                                 value={schemeForm.link} onChange={e => setSchemeForm({...schemeForm, link: e.target.value})} 
                                             />
                                         </div>
-                                        <button type="submit" className="w-full py-3.5 sm:py-4 mt-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition shadow-lg text-sm sm:text-base">
-                                            Push to Network
+                                        <button type="submit" className={`w-full py-3.5 sm:py-4 mt-2 ${editingSchemeId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-indigo-600 hover:bg-indigo-500'} text-white font-bold rounded-xl transition shadow-lg text-sm sm:text-base`}>
+                                            {editingSchemeId ? "Update Scheme" : "Push to Network"}
                                         </button>
                                     </form>
                                 </div>
@@ -262,9 +324,15 @@ const Admin = () => {
                                                 <h4 className="font-bold text-lg truncate mb-1">{s.title}</h4>
                                                 <p className="text-sm text-slate-400 line-clamp-2">{s.simplifiedDescription || s.description}</p>
                                             </div>
-                                            <span className="text-xs tracking-widest uppercase bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full font-bold self-start sm:self-auto shrink-0">
-                                                Active
-                                            </span>
+                                            <div className="flex flex-col gap-2 relative z-10">
+                                                <span className="text-center text-xs tracking-widest uppercase bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full font-bold">
+                                                    Active
+                                                </span>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleEditScheme(s)} className="p-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors" title="Edit Scheme"><Edit2 className="w-4 h-4"/></button>
+                                                    <button onClick={() => deleteScheme(s._id)} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors" title="Delete Scheme"><Trash2 className="w-4 h-4"/></button>
+                                                </div>
+                                            </div>
                                         </motion.div>
                                     ))}
                                     {schemes.length === 0 && <p className="text-slate-500 p-8 text-center border border-dashed border-white/10 rounded-2xl">No schemes active.</p>}
@@ -275,8 +343,11 @@ const Admin = () => {
                         {activeTab === 'polls' && (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
                                 <div className="lg:col-span-5 bg-white/5 p-6 sm:p-8 rounded-3xl shadow-sm border border-white/10 backdrop-blur-sm h-fit">
-                                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Activity className="p-1 rounded bg-indigo-500/20 text-indigo-400"/> Initiate Poll</h2>
-                                    <form onSubmit={createPoll} className="space-y-4">
+                                    <h2 className="text-2xl font-bold mb-6 flex items-center justify-between gap-2">
+                                        <span className="flex items-center gap-2"><Activity className="p-1 rounded bg-indigo-500/20 text-indigo-400"/> {editingPollId ? "Edit" : "Initiate"} Poll</span>
+                                        {editingPollId && <button onClick={() => {setEditingPollId(null); setPollForm({question:'', option1:'', option2:''})}} className="text-sm bg-white/10 px-3 py-1 rounded text-red-400">Cancel</button>}
+                                    </h2>
+                                    <form onSubmit={savePoll} className="space-y-4">
                                         <input 
                                             placeholder="Question Parameter" required 
                                             className="w-full px-4 py-3 sm:py-4 bg-slate-900/50 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition text-sm sm:text-base" 
@@ -294,8 +365,8 @@ const Admin = () => {
                                                 value={pollForm.option2} onChange={e => setPollForm({...pollForm, option2: e.target.value})} 
                                             />
                                         </div>
-                                        <button type="submit" className="w-full py-3.5 sm:py-4 mt-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition shadow-lg text-sm sm:text-base">
-                                            Broadcast Poll
+                                        <button type="submit" className={`w-full py-3.5 sm:py-4 mt-2 ${editingPollId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-indigo-600 hover:bg-indigo-500'} text-white font-bold rounded-xl transition shadow-lg text-sm sm:text-base`}>
+                                            {editingPollId ? "Update Poll" : "Broadcast Poll"}
                                         </button>
                                     </form>
                                 </div>
@@ -306,7 +377,11 @@ const Admin = () => {
                                             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }}
                                             key={p._id} className="bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col h-full"
                                         >
-                                            <h4 className="font-bold text-lg mb-4">{p.question}</h4>
+                                            <h4 className="font-bold text-lg mb-4 pr-12">{p.question}</h4>
+                                            <div className="absolute top-4 right-4 flex gap-1 z-10">
+                                                <button onClick={() => handleEditPoll(p)} className="p-1.5 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 transition-colors" title="Edit Poll"><Edit2 className="w-4 h-4"/></button>
+                                                <button onClick={() => deletePoll(p._id)} className="p-1.5 bg-red-500/10 text-red-500 rounded hover:bg-red-500/20 transition-colors" title="Delete Poll"><Trash2 className="w-4 h-4"/></button>
+                                            </div>
                                             <div className="space-y-2 flex-1">
                                                 {p.options.map(o => (
                                                     <div key={o._id} className="flex justify-between items-center text-sm p-3 bg-slate-900/50 border border-white/5 rounded-xl">
