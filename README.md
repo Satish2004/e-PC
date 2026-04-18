@@ -1,4 +1,4 @@
-# e-PC – Smart Digital Panchayat System
+# e-PC – Digital Panchayat System
 
 e-PC is a next-generation digital platform designed to bridge the gap between rural citizens and panchayat governance. By leveraging Artificial Intelligence, it streamlines complaint management, simplifies government scheme understanding, and fosters transparency in village decision-making.
 
