@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Mic, MicOff } from 'lucide-react';
-import axios from 'axios';
+import api from '../api/api';
 import useAuthStore from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -93,9 +93,7 @@ const Chatbot = () => {
         setLoading(true);
 
         try {
-            const res = await axios.post('http://localhost:5000/api/ai/chat', { prompt: messageToSend }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.post('/ai/chat', { prompt: messageToSend });
             setMessages([...newMessages, { text: res.data.response, sender: "ai" }]);
         } catch (error) {
             setMessages([...newMessages, { text: "Sorry, I encountered an error. Please try again.", sender: "ai" }]);

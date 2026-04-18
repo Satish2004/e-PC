@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../store/useAuthStore';
-import axios from 'axios';
+import api from '../api/api';
 import { toast } from 'react-toastify';
 import { FileText, Send, Info, ChevronRight, Activity, Zap, CheckCircle2, MapPin, Camera, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,7 +43,7 @@ const Dashboard = () => {
     const [isDetecting, setIsDetecting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const headers = { Authorization: `Bearer ${token}` };
+    // const headers is now handled by api interceptor
 
     useEffect(() => {
         fetchComplaints();
@@ -53,21 +53,21 @@ const Dashboard = () => {
 
     const fetchComplaints = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/complaints', { headers });
+            const res = await api.get('/complaints');
             setComplaints(res.data);
         } catch (error) { console.error(error); }
     };
 
     const fetchSchemes = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/schemes', { headers });
+            const res = await api.get('/schemes');
             setSchemes(res.data);
         } catch (error) { console.error(error); }
     };
 
     const fetchPolls = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/polls', { headers });
+            const res = await api.get('/polls');
             setPolls(res.data);
         } catch (error) { console.error(error); }
     };
@@ -108,8 +108,8 @@ const Dashboard = () => {
         images.forEach(img => formData.append('images', img));
 
         try {
-            await axios.post('http://localhost:5000/api/complaints', formData, { 
-                headers: { ...headers, 'Content-Type': 'multipart/form-data' } 
+            await api.post('/complaints', formData, { 
+                headers: { 'Content-Type': 'multipart/form-data' } 
             });
             toast.success("Complaint submitted securely! AI is processing it.");
             setComplaintForm({ title: '', description: '' });
@@ -125,7 +125,7 @@ const Dashboard = () => {
 
     const vote = async (pollId, optionId) => {
         try {
-            await axios.post(`http://localhost:5000/api/polls/${pollId}/vote`, { optionId }, { headers });
+            await api.post(`/polls/${pollId}/vote`, { optionId });
             toast.success("Vote registered!");
             fetchPolls();
         } catch (error) {

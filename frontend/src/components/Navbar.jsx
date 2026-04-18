@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, ArrowRight, Activity } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
-import axios from 'axios';
+import api from '../api/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Animated Hamburger Menu Icon
@@ -46,9 +46,7 @@ const Navbar = () => {
 
     useEffect(() => {
         if (user && token) {
-            axios.get('http://localhost:5000/api/notifications', {
-                headers: { Authorization: `Bearer ${token}` }
-            })
+            api.get('/notifications')
             .then(res => setNotifications(res.data))
             .catch(err => console.log(err));
         }
@@ -143,9 +141,7 @@ const Navbar = () => {
                                                         onClick={async () => {
                                                             if (!n.isRead) {
                                                                 try {
-                                                                    await axios.put(`http://localhost:5000/api/notifications/${n._id}/read`, {}, {
-                                                                        headers: { Authorization: `Bearer ${token}` }
-                                                                    });
+                                                                    await api.put(`/notifications/${n._id}/read`);
                                                                     setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, isRead: true } : item));
                                                                 } catch (error) {
                                                                     console.error(error);

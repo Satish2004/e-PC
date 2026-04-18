@@ -4,5 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  assetsInclude: ['**/*.glb']
+  assetsInclude: ['**/*.glb'],
+  server: {
+    proxy: {
+      '^/(auth|complaints|polls|schemes|notifications|ai)': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

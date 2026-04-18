@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import api from '../api/api';
 import { toast } from 'react-toastify';
 import useAuthStore from '../store/useAuthStore';
 import { useNavigate, Link } from 'react-router-dom';
@@ -15,10 +15,10 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const url = `http://localhost:5000/api/auth/${isLogin ? 'login' : 'register'}`;
+            const url = `/auth/${isLogin ? 'login' : 'register'}`;
             const payload = isLogin ? { email: formData.email, password: formData.password } : formData;
             
-            const res = await axios.post(url, payload);
+            const res = await api.post(url, payload);
             login(res.data);
             toast.success(`${isLogin ? 'Welcome Back!' : 'Registration successful!'}`);
             navigate(res.data.role === 'Admin' ? '/admin' : '/dashboard');

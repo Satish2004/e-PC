@@ -20,19 +20,31 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: ['https://e-pc-mocha.vercel.app', 'http://localhost:5173', 'http://localhost:5000'],
+    credentials: true
+}));
 app.use(express.json());
 
-// Mount Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/complaints', complaintRoutes);
-app.use('/api/polls', pollRoutes);
-app.use('/api/schemes', schemeRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/ai', aiRoutes);
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-app.get('/', (req, res) => {
-    res.send('e-PC Backend is running');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Mount Routes
+app.use('/auth', authRoutes);
+app.use('/complaints', complaintRoutes);
+app.use('/polls', pollRoutes);
+app.use('/schemes', schemeRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/ai', aiRoutes);
+
+// Serve Frontend
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+app.use((req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 // Start Background Jobs

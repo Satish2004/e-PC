@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../store/useAuthStore';
-import axios from 'axios';
+import api from '../api/api';
 import { toast } from 'react-toastify';
 import { Settings, Plus, BarChart2, Activity, Zap, Info, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,7 +26,7 @@ const Admin = () => {
     const [schemeForm, setSchemeForm] = useState({ title: '', description: '', eligibility: '', link: '' });
     const [pollForm, setPollForm] = useState({ question: '', option1: '', option2: '' });
 
-    const headers = { Authorization: `Bearer ${token}` };
+    // const headers is now handled by api interceptor
 
     useEffect(() => {
         fetchData();
@@ -35,9 +35,9 @@ const Admin = () => {
     const fetchData = async () => {
         try {
             const [cRes, sRes, pRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/complaints', { headers }),
-                axios.get('http://localhost:5000/api/schemes', { headers }),
-                axios.get('http://localhost:5000/api/polls', { headers })
+                api.get('/complaints'),
+                api.get('/schemes'),
+                api.get('/polls')
             ]);
             setComplaints(cRes.data);
             setSchemes(sRes.data);
@@ -47,7 +47,7 @@ const Admin = () => {
 
     const updateStatus = async (id, status) => {
         try {
-            await axios.put(`http://localhost:5000/api/complaints/${id}`, { status }, { headers });
+            await api.put(`/complaints/${id}`, { status });
             toast.success("Status updated & User notified!");
             fetchData();
         } catch (error) { toast.error("Failed to update status"); }
@@ -56,7 +56,7 @@ const Admin = () => {
     const createScheme = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/schemes', schemeForm, { headers });
+            await api.post('/schemes', schemeForm);
             toast.success("Scheme published!");
             setSchemeForm({ title: '', description: '', eligibility: '', link: '' });
             fetchData();
@@ -66,10 +66,10 @@ const Admin = () => {
     const createPoll = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/polls', {
+            await api.post('/polls', {
                 question: pollForm.question,
                 options: [pollForm.option1, pollForm.option2]
-            }, { headers });
+            });
             toast.success("Poll published!");
             setPollForm({ question: '', option1: '', option2: '' });
             fetchData();
