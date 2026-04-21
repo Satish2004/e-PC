@@ -17,6 +17,18 @@ const uploadToCloudinary = (buffer) => {
     });
 };
 
+const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; // Distance in km
+};
+
 export const createComplaint = async (req, res) => {
     const { title, description, location } = req.body;
     let parsedLocation = null;
@@ -26,17 +38,35 @@ export const createComplaint = async (req, res) => {
     }
 
     try {
+        const aiData = await analyzeComplaint(description);
+
+        // Smart Deduplication check (same category within 200 meters)
+        if (parsedLocation && parsedLocation.lat && parsedLocation.lng) {
+            const existingComplaints = await Complaint.find({ status: { $ne: 'Resolved' } }).populate('user', 'name');
+            for (let c of existingComplaints) {
+                if (c.location && c.location.lat && c.location.lng) {
+                    const distance = getDistanceInKm(parsedLocation.lat, parsedLocation.lng, c.location.lat, c.location.lng);
+                    if (distance <= 0.2) { // 200 meters
+                        const newCat = (aiData.category || '').toLowerCase();
+                        const oldCat = (c.category || '').toLowerCase();
+                        if (newCat && oldCat && (newCat.includes(oldCat) || oldCat.includes(newCat) || newCat === oldCat)) {
+                            return res.status(400).json({ message: `Duplicate Detected! This ${c.category} issue has already been raised near this location by citizen ${c.user?.name?.split(' ')[0] || 'someone'}.` });
+                        }
+                    }
+                }
+            }
+        }
+
         let imageUrls = [];
         if (req.files && req.files.length > 0) {
             const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer));
             imageUrls = await Promise.all(uploadPromises);
         }
 
-        const aiData = await analyzeComplaint(description);
         const complaint = await Complaint.create({
             user: req.user._id,
             title,
-            description,
+            description: aiData.translatedHinglish || description,
             aiEnhancement: aiData.enhancedText,
             category: aiData.category,
             urgency: aiData.urgency,

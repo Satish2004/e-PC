@@ -1,15 +1,16 @@
 import Scheme from '../models/Scheme.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { summarizeSchemes } from '../utils/gemini.js';
+import { summarizeSchemes, translateToHindi } from '../utils/gemini.js';
 import { sendEmail } from '../utils/email.js';
 
 export const createScheme = async (req, res) => {
     const { title, description, eligibility, link } = req.body;
     try {
-        const simplifiedDescription = await summarizeSchemes(description);
+        const translatedDescription = await translateToHindi(description);
+        const simplifiedDescription = await summarizeSchemes(translatedDescription);
         const scheme = await Scheme.create({
-            title, description, simplifiedDescription, eligibility, link
+            title, description: translatedDescription, simplifiedDescription, eligibility, link
         });
 
         // Notify all citizens about the new scheme
@@ -52,12 +53,14 @@ export const updateScheme = async (req, res) => {
         if (!scheme) return res.status(404).json({ message: 'Scheme not found' });
         
         let newSimplification = scheme.simplifiedDescription;
+        let finalDescription = scheme.description;
         if (description && description !== scheme.description) {
-            newSimplification = await summarizeSchemes(description);
+            finalDescription = await translateToHindi(description);
+            newSimplification = await summarizeSchemes(finalDescription);
         }
 
         scheme.title = title || scheme.title;
-        scheme.description = description || scheme.description;
+        scheme.description = finalDescription;
         scheme.simplifiedDescription = newSimplification;
         scheme.eligibility = eligibility || scheme.eligibility;
         scheme.link = link || scheme.link;

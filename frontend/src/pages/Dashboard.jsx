@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useAuthStore from '../store/useAuthStore';
 import api from '../api/api';
 import { toast } from 'react-toastify';
-import { FileText, Send, Info, ChevronRight, Activity, Zap, CheckCircle2, MapPin, Camera, X } from 'lucide-react';
+import { FileText, Send, Info, ChevronRight, Activity, Zap, CheckCircle2, MapPin, Camera, X, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -22,11 +22,25 @@ const redMarker = new L.Icon({
     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
 });
 
-const LocationPicker = ({ location, setLocation }) => {
+const LocationPicker = ({ location, setLocation, setLocationAddress }) => {
     useMapEvents({
-        click(e) { setLocation({ lat: e.latlng.lat, lng: e.latlng.lng, address: "Selected Area" }); }
+        async click(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            setLocation({ lat, lng, address: "Fetching..." });
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                const data = await res.json();
+                const addr = data?.display_name || "Selected Area";
+                setLocation({ lat, lng, address: addr });
+                setLocationAddress(addr);
+            } catch {
+                setLocation({ lat, lng, address: "Selected Area" });
+                setLocationAddress("Selected Area");
+            }
+        }
     });
-    return location ? <Marker position={[location.lat, location.lng]} icon={redMarker} /> : null;
+    return (location && location.lat) ? <Marker position={[location.lat, location.lng]} icon={redMarker} /> : null;
 };
 
 const Dashboard = () => {
@@ -40,8 +54,52 @@ const Dashboard = () => {
     const [complaintForm, setComplaintForm] = useState({ title: '', description: '' });
     const [images, setImages] = useState([]);
     const [location, setLocation] = useState(null);
+    const [locationAddress, setLocationAddress] = useState('');
     const [isDetecting, setIsDetecting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isListeningVoice, setIsListeningVoice] = useState(false);
+    const recognitionRef = useRef(null);
+
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = true;
+            recognitionRef.current.interimResults = true;
+            recognitionRef.current.lang = 'hi-IN'; // Support regional languages
+
+            recognitionRef.current.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    setComplaintForm(prev => ({...prev, description: (prev.description + " " + finalTranscript).trim()}));
+                }
+            };
+            recognitionRef.current.onerror = () => setIsListeningVoice(false);
+            recognitionRef.current.onend = () => setIsListeningVoice(false);
+        }
+        return () => {
+             if(recognitionRef.current) {
+                 try{ recognitionRef.current.stop(); }catch(e){}
+             }
+        }
+    }, []);
+
+    const toggleVoice = () => {
+        if(isListeningVoice) {
+            recognitionRef.current?.stop();
+            setIsListeningVoice(false);
+        } else {
+            try {
+                recognitionRef.current?.start();
+                setIsListeningVoice(true);
+            } catch(e) {}
+        }
+    };
 
     // const headers is now handled by api interceptor
 
@@ -75,12 +133,24 @@ const Dashboard = () => {
     const detectLocation = () => {
         setIsDetecting(true);
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, address: "Current Location" });
+            async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                setLocation({ lat, lng, address: "Fetching..." });
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                    const data = await res.json();
+                    const addr = data?.display_name || "Current Location";
+                    setLocation({ lat, lng, address: addr });
+                    setLocationAddress(addr);
+                } catch {
+                    setLocation({ lat, lng, address: "Current Location" });
+                    setLocationAddress("Current Location");
+                }
                 setIsDetecting(false);
             },
             (err) => {
-                toast.error("Location access denied. Please click on map manually.");
+                toast.error("Location access denied. Please click on map manually or type area in field.");
                 setIsDetecting(false);
             }
         );
@@ -115,6 +185,7 @@ const Dashboard = () => {
             setComplaintForm({ title: '', description: '' });
             setImages([]);
             setLocation(null);
+            setLocationAddress('');
             fetchComplaints();
         } catch (error) {
             toast.error("Failed to submit. Check internet or file size (<5MB).");
@@ -155,20 +226,38 @@ const Dashboard = () => {
                     </div>
                     
                     {/* Floating Tab Selector */}
-                    <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-full border border-white/10 w-fit flex-wrap">
-                        {['complaints', 'schemes', 'polls', 'analytics'].map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`px-6 py-2.5 rounded-full text-sm font-semibold capitalize transition-all duration-300 xl:flex-none ${
-                                    activeTab === tab 
-                                    ? 'bg-blue-600 text-white shadow-lg' 
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
+                    <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-full border border-white/10 w-fit flex-wrap gap-1">
+                        {['complaints', 'schemes', 'polls', 'analytics'].map((tab) => {
+                            const lastViewedSchemes = parseInt(localStorage.getItem('lastViewedSchemes') || '0', 10);
+                            const lastViewedPolls = parseInt(localStorage.getItem('lastViewedPolls') || '0', 10);
+                            
+                            const hasNewPoll = polls.some(p => p.isActive && !p.voters.includes(user?._id) && new Date(p.createdAt || Date.now()).getTime() > lastViewedPolls);
+                            const hasNewScheme = schemes.some(s => s.createdAt && new Date(s.createdAt).getTime() > lastViewedSchemes);
+                            
+                            // Don't show dot if they are currently on the tab
+                            const showDot = (tab === 'polls' && hasNewPoll && activeTab !== 'polls') || (tab === 'schemes' && hasNewScheme && activeTab !== 'schemes');
+                            
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => {
+                                        setActiveTab(tab);
+                                        if (tab === 'schemes') localStorage.setItem('lastViewedSchemes', Date.now().toString());
+                                        if (tab === 'polls') localStorage.setItem('lastViewedPolls', Date.now().toString());
+                                    }}
+                                    className={`relative px-6 py-2.5 rounded-full text-sm font-semibold capitalize transition-all duration-300 xl:flex-none ${
+                                        activeTab === tab 
+                                        ? 'bg-blue-600 text-white shadow-lg' 
+                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                                >
+                                    {tab}
+                                    {showDot && (
+                                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-[#020617] shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </motion.div>
 
@@ -200,11 +289,31 @@ const Dashboard = () => {
                                                 className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition text-sm sm:text-base relative z-30"
                                                 value={complaintForm.title} onChange={e => setComplaintForm({...complaintForm, title: e.target.value})}
                                             />
-                                            <textarea 
-                                                placeholder="Describe what's wrong..." required rows="3"
-                                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition resize-none text-sm sm:text-base relative z-30"
-                                                value={complaintForm.description} onChange={e => setComplaintForm({...complaintForm, description: e.target.value})}
-                                            ></textarea>
+                                            <div className="relative z-30">
+                                                <textarea 
+                                                    placeholder="Describe what's wrong..." required rows="3"
+                                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 pb-10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition resize-none text-sm sm:text-base"
+                                                    value={complaintForm.description} onChange={e => setComplaintForm({...complaintForm, description: e.target.value})}
+                                                ></textarea>
+                                                <button 
+                                                    type="button"
+                                                    onClick={toggleVoice}
+                                                    title="Tap to speak (Regional/Hindi)"
+                                                    className={`absolute bottom-3 right-3 p-1.5 rounded-full transition ${isListeningVoice ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                                                >
+                                                    {isListeningVoice ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4"/>}
+                                                </button>
+                                            </div>
+
+                                            <input 
+                                                placeholder="Area/Location (Auto-Detect, Map or Type Manually)" required
+                                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition text-sm sm:text-base relative z-30"
+                                                value={locationAddress} 
+                                                onChange={e => {
+                                                    setLocationAddress(e.target.value);
+                                                    setLocation(prev => prev ? { ...prev, address: e.target.value } : { lat: null, lng: null, address: e.target.value });
+                                                }}
+                                            />
                                             
                                             {/* Photo Upload Section */}
                                             <div className="bg-slate-900/50 border border-white/10 border-dashed rounded-xl p-4 relative z-30">
@@ -242,7 +351,7 @@ const Dashboard = () => {
                                                 <div className="h-[200px] w-full z-10 bg-slate-800">
                                                     <MapContainer center={location ? [location.lat, location.lng] : [28.6139, 77.2090]} zoom={location ? 15 : 5} scrollWheelZoom={false} style={{ height: "100%", width: "100%", zIndex: 10 }}>
                                                         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                                                        <LocationPicker location={location} setLocation={setLocation} />
+                                                        <LocationPicker location={location} setLocation={setLocation} setLocationAddress={setLocationAddress} />
                                                     </MapContainer>
                                                 </div>
                                             </div>
@@ -348,9 +457,9 @@ const Dashboard = () => {
                                         <p className="text-slate-400 font-light mb-6 flex-1 line-clamp-3">{s.description}</p>
                                         
                                         {s.simplifiedDescription && (
-                                            <div className="bg-emerald-500/10 p-5 rounded-2xl mb-6 border border-emerald-500/20">
-                                                <p className="text-xs font-bold tracking-widest text-emerald-400 uppercase mb-2 flex items-center gap-1"><Info className="w-3 h-3"/> AI Simply Explained</p>
-                                                <p className="text-sm text-emerald-100">{s.simplifiedDescription}</p>
+                                            <div className="bg-emerald-500/10 p-5 rounded-2xl mb-6 border border-emerald-500/20 shadow-inner">
+                                                <p className="text-xs font-bold tracking-widest text-emerald-400 uppercase mb-3 flex items-center gap-1"><Info className="w-3 h-3"/> AI Simply Explained</p>
+                                                <div className="text-sm text-emerald-100 space-y-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: s.simplifiedDescription }}></div>
                                             </div>
                                         )}
                                         

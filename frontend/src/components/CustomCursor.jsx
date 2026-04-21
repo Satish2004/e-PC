@@ -10,8 +10,8 @@ const CustomCursor = () => {
     const mouseY = useMotionValue(-100);
 
     // Ring (Moves slightly slower, creates a trailing effect)
-    const ringX = useSpring(mouseX, { damping: 25, stiffness: 200, mass: 0.5 });
-    const ringY = useSpring(mouseY, { damping: 25, stiffness: 200, mass: 0.5 });
+    const ringX = useSpring(mouseX, { damping: 20, stiffness: 450, mass: 0.2 });
+    const ringY = useSpring(mouseY, { damping: 20, stiffness: 450, mass: 0.2 });
 
     // Dot (Moves very fast, almost instantly glued to the actual pointer)
     const dotX = useSpring(mouseX, { damping: 40, stiffness: 800, mass: 0.1 });

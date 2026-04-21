@@ -322,7 +322,7 @@ const Admin = () => {
                                         >
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-lg truncate mb-1">{s.title}</h4>
-                                                <p className="text-sm text-slate-400 line-clamp-2">{s.simplifiedDescription || s.description}</p>
+                                                <div className="text-sm text-slate-400 line-clamp-2 space-y-1" dangerouslySetInnerHTML={{ __html: s.simplifiedDescription || s.description }}></div>
                                             </div>
                                             <div className="flex flex-col gap-2 relative z-10">
                                                 <span className="text-center text-xs tracking-widest uppercase bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full font-bold">
